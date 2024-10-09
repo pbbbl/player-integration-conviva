@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bitmovin Player Analytics Conviva Integration</title>
+    <style>
+      .container {
+        color: white;
+        text-align: center;
+        padding: 1em;
+      }
+
+      .container a {
+        color: white;
+      }
+
+      .container h1 {
+        margin-bottom: 22px;
+        line-height: 66px;
+      }
+
+      .container h2 {
+        font-weight: normal;
+        margin-bottom: 36px;
+        line-height: 26px;
+      }
+
+      .player-wrapper {
+        width: 95%;
+        margin: 20px auto;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+      }
+    </style>
+    <script src="//cdn.bitmovin.com/player/web/8.31.0/bitmovinplayer.js"></script>
+    <script src="./conviva-core-sdk.js"></script>
+    <script src="./dist/bitmovin-player-analytics-conviva.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="content">
+        <div class="player-wrapper">
+          <div id="player"></div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <button id="createPlayer">Create Player</button>
+      <button id="loadPlayer">Load Player</button>
+      <button id="unloadPlayer">Unload Player</button>
+      <button id="destroyPlayer">Destroy Player</button>
+      <button id="simulateSsaiAd">Simulate SSAI Ad</button>
+      <button id="initializeSession">Initialize session</button>
+    </div>
+    <script>
+      var player;
+      var convivaAnalytics;
+
+      var convivaCustomerKey = '<CONVIVA_CUSTOMER_KEY>';
+      var convivaAnalyticsConfig = {
+        debugLoggingEnabled: true,
+        // TOUCHSTONE_SERVICE_URL for testing (DO NOT USE IN PRODUCTION)
+        gatewayUrl: 'https://youraccount-test.testonly.conviva.com',
+        // This is inferred automatically, but can be overridden.
+        // deviceMetadata: { ... }
+      };
+
+      function createPlayer() {
+        if (player) {
+          alert('You need to destroy the player before re-creating it');
+          return;
+        }
+
+        console.log('Creating Bitmovin Player');
+
+        player = new bitmovin.player.Player(document.getElementById('player'), getPlayerConfig());
+
+        if (convivaAnalytics) {
+          console.log('Reusing Conviva Analytics');
+          convivaAnalytics.attachPlayer(player);
+        } else {
+          console.log('Creating Conviva Analytics');
+          convivaAnalytics = new bitmovin.player.analytics.ConvivaAnalytics(
+            player,
+            convivaCustomerKey,
+            convivaAnalyticsConfig,
+          );
+        }
+      }
+
+      function initializeSession() {
+        if (convivaAnalytics) {
+          alert('You need to destroy the previous player before initializing session');
+          return;
+        }
+
+        console.log('Creating Conviva Analytics and initializing session');
+
+        convivaAnalytics = new bitmovin.player.analytics.ConvivaAnalytics(
+          undefined,
+          convivaCustomerKey,
+          convivaAnalyticsConfig,
+        );
+        convivaAnalytics.updateContentMetadata({
+          assetName: 'Art of Motion',
+        });
+        convivaAnalytics.initializeSession();
+      }
+
+      function loadPlayer() {
+        if (!player) {
+          alert('You need to create the player before loading it');
+          return;
+        }
+
+        console.log('Updating Conviva Analytics content metadata');
+        // Initialize metadata. It also can be used to update some data during playback.
+        convivaAnalytics.updateContentMetadata({
+          viewerId: 'bitmovin-player-web-conviva-integration-viewer',
+          // It's also referred as "Player name" on Conviva in some places.
+          applicationName: 'Bitmovin Web Player',
+          assetName: 'Art of Motion',
+          defaultResource: 'TEST-DEFAULT-RESOURCE',
+          custom: {
+            directors: 'Director 1, Director 2',
+          },
+          // Reserved Conviva tags can be placed here.
+          // Find the list:
+          // - Here https://pulse.conviva.com/app/appmanager/meta-data (Required Metadata tab)
+          // - Or here https://pulse.conviva.com/learning-center/content/sensor_developer_center/sensor_integration/javascript/js_quick_integration.htm
+          //   under "Constants for Pre-defined Video and Content Metadata"
+          additionalStandardTags: {
+            'c3.app.version': '0.0.1',
+            'c3.cm.contentType': 'VOD',
+            'c3.cm.channel': 'Test Channel',
+            'c3.cm.brand': 'Test Brand',
+            'c3.cm.affiliate': 'Test Affiliate',
+            'c3.cm.categoryType': 'Test Category',
+            'c3.cm.name': 'Test CM Name',
+            'c3.cm.id': 'test-cm-id',
+            'c3.cm.seriesName': 'Test Series Name',
+            'c3.cm.seasonNumber': 'Test Season Number',
+            'c3.cm.showTitle': 'Test Show Title',
+            'c3.cm.episodeNumber': 'Test Episode Number',
+            'c3.cm.genre': 'Test Primary Genre',
+            'c3.cm.genreList': 'Test Genre List Item 1, Test Genre List Item 2',
+            'c3.cm.utmTrackingUrl': 'https://test-utm-tracking-url',
+            // Cannot be determined reliably, but if there is a need this approximation can be used.
+            // dcType: navigator.connection?.type || navigator.connection?.effectiveType
+            //   || 'NA'
+          },
+        });
+
+        console.log('Loading player');
+        player.load(getPlayerSource()).then(
+          function () {
+            console.log('Successfully loaded content');
+          },
+          function (reason) {
+            console.error('Error while loading content');
+            console.error(reason);
+          },
+        );
+      }
+
+      function unloadPlayer() {
+        console.log('Unloading Player');
+        player.unload();
+      }
+
+      function destroyPlayer() {
+        if (player) {
+          console.log('Destroying player');
+
+          player.destroy();
+          player = null;
+          convivaAnalytics = null;
+        } else {
+          console.log('No player to destroy');
+        }
+      }
+
+      const simulateSsaiAd = () => {
+        if (!player || !player.isPlaying()) {
+          alert('You need to load the player and ensure there is playback active before simulating an SSAI ad');
+          return;
+        }
+
+        convivaAnalytics.ssai.reportAdBreakStarted();
+        convivaAnalytics.ssai.reportAdStarted({
+          id: 'dummy-web-server-side-ad',
+          title: 'Dummy web server side AD',
+          duration: 20,
+          adSystem: 'dummy-server-side-ad-system',
+          position: Conviva.Constants.AdPosition.PREROLL,
+          isSlate: false,
+          adStitcher: 'Dummy AD stitcher',
+          additionalMetadata: {
+            dummyKey: 'dummy-value',
+          },
+        });
+
+        // "Play" the server side ad for 20 seconds.
+        setTimeout(() => {
+          convivaAnalytics.ssai.reportAdFinished();
+          convivaAnalytics.ssai.reportAdBreakFinished();
+        }, 20_000);
+      };
+
+      const destroyPlayerButton = document.getElementById('destroyPlayer');
+      destroyPlayerButton.onclick = destroyPlayer;
+
+      const createPlayerButton = document.getElementById('createPlayer');
+      createPlayerButton.onclick = createPlayer;
+
+      const loadPlayerButton = document.getElementById('loadPlayer');
+      loadPlayerButton.onclick = loadPlayer;
+
+      const unloadPlayerButton = document.getElementById('unloadPlayer');
+      unloadPlayerButton.onclick = unloadPlayer;
+
+      const simulateSsaiAdButton = document.getElementById('simulateSsaiAd');
+      simulateSsaiAdButton.onclick = simulateSsaiAd;
+
+      const initializeSessionButton = document.getElementById('initializeSession');
+      initializeSessionButton.onclick = initializeSession;
+
+      function getPlayerConfig() {
+        return {
+          key: '<PLAYER_LICENSE_KEY>',
+          playback: {
+            muted: true,
+          },
+          style: {},
+          cast: {
+            enable: true,
+          },
+          logs: {
+            level: 'debug',
+          },
+          events: {},
+          advertising: {},
+          remotecontrol: {
+            receiverApplicationId: 'FE832A8F', // Replace with your application id
+            type: 'googlecast',
+          },
+          advertising: {
+            adBreaks: [
+              {
+                tag: {
+                  url: 'https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_ad_samples&sz=640x480&cust_params=sample_ct%3Dredirectlinear&ciu_szs=300x250%2C728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=',
+                  type: bitmovin.player.AdTagType.VAST,
+                },
+                id: 'ad-pre-skippable',
+                position: 'pre',
+              },
+            ],
+          },
+        };
+      }
+
+      function getPlayerSource() {
+        return {
+          title: 'Art of Motion',
+          description: 'What is this event... Parcour?',
+          dash: '//bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd',
+          hls: '//bitmovin-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8',
+          progressive:
+            '//bitmovin-a.akamaihd.net/content/MI201109210084_1/MI201109210084_mpeg-4_hd_high_1080p25_10mbits.mp4',
+          poster: '//bitmovin-a.akamaihd.net/content/art-of-motion_drm/art-of-motion_poster.jpg',
+        };
+      }
+
+      // Load up an initial player
+      createPlayer();
+      loadPlayer();
+    </script>
+  </body>
+</html>

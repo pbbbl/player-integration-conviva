@@ -1,0 +1,64 @@
+{
+  "name": "@pbbbl/player-integration-conviva",
+  "version": "1.0.0",
+  "description": "Conviva analytics integration for the Bitmovin Player",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pbbbl/bitmovin-player-analytics-conviva.git"
+  },
+  "main": "./dist/bitmovin-player-analytics-conviva.js",
+  "types": "./dist/bitmovin-player-analytics-conviva.d.ts",
+  "scripts": {
+    "prepare": "husky install",
+    "setup": "node ./setup/index.js && npm run format",
+    "format": "prettier --write src/ spec/ example/",
+    "lint": "node_modules/.bin/tslint -c tslint.json 'src/**/*.ts' && kacl lint",
+    "start": "./node_modules/.bin/webpack-dev-server --open --config webpack.dev.js",
+    "clean": "rm -rf ./dist",
+    "build": "npm run build:describe && npm run setup && npm run lint && npm run clean && npm run build:lib && npm run build:bundle",
+    "build:describe": "echo \"Building Player Integration...\"",
+    "build:lib": "./node_modules/.bin/tsc -p ./tsconfig.build.json --module commonjs --outDir ./dist/lib --declaration",
+    "build:esm": "./node_modules/.bin/tsc -p ./tsconfig.build.json --module es6 --outDir ./dist/lib-esm --declaration",
+    "build:bundle": "./node_modules/.bin/webpack --config webpack.prod.js",
+    "test": "./node_modules/.bin/jest",
+    "prepublishOnly": "npm install && npm run build"
+  },
+  "lint-staged": {
+    "**/*.{ts,js}": "prettier --write --ignore-unknown",
+    "CHANGELOG.md": "kacl lint --filename"
+  },
+  "author": "Bitmovin",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^24.0.1",
+    "bitmovin-player": "^8.165.0",
+    "bitmovin-player-ui": "^3.3.1",
+    "changelog-parser": "^3.0.1",
+    "create-file-webpack": "^1.0.2",
+    "fs-extra": "^11.2.0",
+    "husky": "^8.0.3",
+    "jest": "^24.1.0",
+    "jest-mock-extended": "^3.0.7",
+    "kacl": "^1.1.1",
+    "lint-staged": "^13.2.2",
+    "prettier": "^2.8.8",
+    "semver": "^7.6.2",
+    "string-replace-loader": "^2.1.1",
+    "ts-jest": "^23.10.5",
+    "ts-loader": "^8.4.0",
+    "tslint": "^5.11.0",
+    "typescript": "^4.9.5",
+    "webpack": "^4.27.1",
+    "webpack-cli": "^3.1.2",
+    "webpack-dev-server": "^3.10.3",
+    "webpack-merge": "^4.1.5"
+  },
+  "peerDependencies": {
+    "@convivainc/conviva-js-coresdk": "^4.7.6",
+    "bitmovin-player": "^8.165.0"
+  },
+  "volta": {
+    "node": "16.15.1",
+    "npm": "8.11.0"
+  }
+}
